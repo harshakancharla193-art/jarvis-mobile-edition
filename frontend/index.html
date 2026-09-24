@@ -1,31 +1,43 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>J.A.R.V.I.S</title>
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.A.R.V.I.S. SYSTEM</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header><h1>J.A.R.V.I.S</h1><p>MOBILE EDITION</p></header>
-<div class="core">
-<div class="ring r1"></div>
-<div class="ring r2"></div>
-<div class="center"></div>
-</div>
-<p class="core-text">CORE ACTIVE</p>
-<div class="status">
-<h2>SYSTEM STATUS</h2>
-<div class="row"><span>AI CORE</span><b class="on">● ONLINE</b></div>
-<div class="row"><span>NETWORK</span><b class="on">● ONLINE</b></div>
-<div class="row"><span>VOICE</span><b class="off">○ LOCKED</b></div>
-<div class="row"><span>MEMORY</span><b class="off">○ LOCKED</b></div>
-</div>
-<div class="chat" id="chat"></div>
-<div class="input-area">
-<input id="msg" placeholder="Ask J.A.R.V.I.S...">
-<button id="send">SEND</button>
-</div>
-<script src="script.js"></script>
+    <div class="container">
+        <h1>J.A.R.V.I.S. MOBILE EDITION</h1>
+        
+        <div class="ring-container">
+            <div class="ring ring-outer"></div>
+            <div class="ring ring-middle"></div>
+            <div class="ring ring-inner"></div>
+            <div class="core"></div>
+        </div>
+
+        <div class="status-container">
+            <div id="status-text" class="status-text ACTIVE">
+                <span class="label">SYSTEM STATUS:</span>
+                <span class="value">INITIALIZING CORE...</span>
+            </div>
+            <div id="voice-text" class="status-text">
+                <span class="label">VOICE:</span>
+                <span id="voice-status">OFFLINE</span>
+            </div>
+            <div id="memory-text" class="status-text">
+                <span class="label">MEMORY:</span>
+                <span id="memory-status">STANDBY</span>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <input type="text" id="user-input" placeholder="Ask J.A.R.V.I.S....">
+            <button id="send-btn">SEND</button>
+            <button id="voice-btn" class="mic-btn">MIC</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
 </body>
 </html>

@@ -11,6 +11,7 @@ body {
     background: #000;
     color: #0ff;
     padding: 20px;
+    overflow-x: hidden;
 }
 
 header {
@@ -27,6 +28,9 @@ header p {
     letter-spacing: 4px;
     opacity: 0.6;
 }
+
+
+/* ===== JARVIS CORE ===== */
 
 .core {
     position: relative;
@@ -63,6 +67,9 @@ header p {
     animation: pulse 1.5s infinite;
 }
 
+
+/* ===== ANIMATIONS ===== */
+
 @keyframes spin {
     to {
         transform: rotate(360deg);
@@ -75,11 +82,17 @@ header p {
     }
 }
 
+
+/* ===== CORE TEXT ===== */
+
 .core-text {
     text-align: center;
     font-size: 11px;
     letter-spacing: 3px;
 }
+
+
+/* ===== SYSTEM STATUS ===== */
 
 .status {
     border: 1px solid rgba(0, 255, 255, 0.3);
@@ -97,6 +110,7 @@ header p {
 .row {
     display: flex;
     justify-content: space-between;
+    gap: 8px;
     font-size: 11px;
     margin: 6px 0;
 }
@@ -108,6 +122,9 @@ header p {
 .off {
     color: #f00;
 }
+
+
+/* ===== CHAT ===== */
 
 .chat {
     border: 1px solid rgba(0, 255, 255, 0.3);
@@ -128,14 +145,19 @@ header p {
     border-left-color: #fff;
 }
 
+
+/* ===== INPUT AREA ===== */
+
 .input-area {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     margin-top: 12px;
 }
 
 input {
-    flex: 1;
+    flex: 1 1 220px;
+    min-width: 0;
     background: #000;
     border: 1px solid #0ff;
     color: #0ff;
@@ -148,5 +170,36 @@ button {
     border: none;
     padding: 10px 16px;
     font-weight: bold;
+    white-space: nowrap;
     cursor: pointer;
+}
+
+button:hover {
+    box-shadow: 0 0 15px #0ff;
+}
+
+
+/* ===== MOBILE ===== */
+
+@media (max-width: 600px) {
+
+    body {
+        padding: 12px;
+    }
+
+    .input-area input {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+
+    .input-area button {
+        flex: 1 1 auto;
+        padding: 10px 9px;
+        font-size: 10px;
+    }
+
+    .row {
+        font-size: 10px;
+    }
+
 }

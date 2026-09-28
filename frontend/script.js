@@ -1,4 +1,4 @@
-// ===== 1. API KEY =====
+// ===== 1. API KEY & SMART MODELS =====
 
 let API_KEY = localStorage.getItem('jarvis_key');
 
@@ -10,28 +10,14 @@ if (!API_KEY) {
     }
 }
 
-
-// ===== 2. SMART MODELS =====
-
 const MODELS = [
-    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-3.1-flash-lite",
     "gemini-flash-latest"
 ];
 
 
-// ===== 3. ELEMENTS =====
-
-const chat = document.getElementById('chat');
-const input = document.getElementById('msg');
-
-const micBtn = document.getElementById('mic-btn');
-const clearBtn = document.getElementById('clear-btn');
-
-const camBtn = document.getElementById('cam-btn');
-const imgInput = document.getElementById('img-input');
-
-
-// ===== 4. MEMORY =====
+// ===== 2. MEMORY SYSTEM =====
 
 let MEMORY = JSON.parse(
     localStorage.getItem('jarvis_memory') || '[]'
@@ -45,7 +31,17 @@ function saveMemory() {
 }
 
 
-// ===== 5. LOAD OLD MEMORY =====
+// ===== 3. GET HTML ELEMENTS =====
+
+const chat = document.getElementById('chat');
+const input = document.getElementById('msg');
+const micBtn = document.getElementById('mic-btn');
+const clearBtn = document.getElementById('clear-btn');
+const camBtn = document.getElementById('cam-btn');
+const imgInput = document.getElementById('img-input');
+
+
+// ===== 4. LOAD OLD MEMORY =====
 
 MEMORY.forEach(m => {
 
@@ -62,7 +58,7 @@ MEMORY.forEach(m => {
 });
 
 
-// ===== 6. GEMINI BRAIN =====
+// ===== 5. GEMINI BRAIN =====
 
 async function callGemini(p) {
 
@@ -119,23 +115,13 @@ async function callGemini(p) {
                 );
 
                 if (
-                    /high demand|temporar|quota|rate|unavailable|deprecated|not found/i
+                    /high demand|temporar|quota|rate|unavailable|deprecated/i
                     .test(data.error.message)
                 ) {
                     continue;
                 }
 
                 throw lastErr;
-            }
-
-            if (
-                !data.candidates ||
-                !data.candidates[0] ||
-                !data.candidates[0].content
-            ) {
-                throw new Error(
-                    "No response received from Gemini."
-                );
             }
 
             return data.candidates[0]
@@ -148,12 +134,11 @@ async function callGemini(p) {
         }
     }
 
-    throw lastErr ||
-        new Error("Gemini request failed.");
+    throw lastErr;
 }
 
 
-// ===== 7. ASK GEMINI =====
+// ===== 6. ASK GEMINI =====
 
 async function askGemini(p) {
 
@@ -166,6 +151,7 @@ async function askGemini(p) {
 
         const reply = await callGemini(p);
 
+        // Save conversation
         MEMORY.push({
             role: 'user',
             text: p
@@ -181,6 +167,7 @@ async function askGemini(p) {
         chat.lastChild.innerText =
             'J.A.R.V.I.S: ' + reply;
 
+        // Voice reply
         speak(reply);
 
     } catch (e) {
@@ -188,16 +175,19 @@ async function askGemini(p) {
         chat.lastChild.innerText =
             'J.A.R.V.I.S: ERROR - ' +
             e.message;
+
     }
 }
 
 
-// ===== 8. VISION / IMAGE ANALYSIS =====
+// ===== 7. VISION ENGINE =====
 
 if (camBtn && imgInput) {
 
     camBtn.onclick = () => {
+
         imgInput.click();
+
     };
 
 
@@ -216,7 +206,7 @@ if (camBtn && imgInput) {
 
             const q =
                 input.value.trim() ||
-                'What do you see? Describe briefly in Telugu or English.';
+                'What do you see? Describe briefly.';
 
             add(
                 'YOU: [IMAGE] ' + q,
@@ -237,7 +227,7 @@ if (camBtn && imgInput) {
 }
 
 
-// ===== 9. VISION ENGINE =====
+// ===== 8. IMAGE ANALYSIS =====
 
 async function askVision(
     base64,
@@ -269,21 +259,28 @@ async function askVision(
                     },
 
                     body: JSON.stringify({
+
                         contents: [
+
                             {
                                 parts: [
+
                                     {
                                         text: q
                                     },
+
                                     {
                                         inline_data: {
                                             mime_type: mime,
                                             data: base64
                                         }
                                     }
+
                                 ]
                             }
+
                         ]
+
                     })
                 }
             );
@@ -297,7 +294,7 @@ async function askVision(
                 );
 
                 if (
-                    /high demand|temporar|quota|rate|unavailable|deprecated|not found/i
+                    /high demand|temporar|quota|rate|unavailable|deprecated/i
                     .test(data.error.message)
                 ) {
                     continue;
@@ -326,13 +323,11 @@ async function askVision(
 
     chat.lastChild.innerText =
         'J.A.R.V.I.S: ERROR - ' +
-        (lastErr
-            ? lastErr.message
-            : 'Image analysis failed.');
+        lastErr.message;
 }
 
 
-// ===== 10. SPEECH RECOGNITION =====
+// ===== 9. VOICE RECOGNITION =====
 
 const SR =
     window.SpeechRecognition ||
@@ -360,18 +355,10 @@ if (SR && micBtn) {
 
     micBtn.onclick = () => {
 
-        try {
+        rec.start();
 
-            rec.start();
-
-            micBtn.innerText =
-                'LISTENING...';
-
-        } catch (e) {
-
-            console.log(e);
-
-        }
+        micBtn.innerText =
+            'LISTENING...';
     };
 
 
@@ -380,16 +367,10 @@ if (SR && micBtn) {
         micBtn.innerText = '🎙';
 
     };
-
-} else if (micBtn) {
-
-    micBtn.disabled = true;
-
-    micBtn.innerText = '❌';
 }
 
 
-// ===== 11. TEXT TO SPEECH =====
+// ===== 10. TEXT TO SPEECH =====
 
 let voices = [];
 
@@ -397,6 +378,7 @@ function loadVoices() {
 
     voices =
         speechSynthesis.getVoices();
+
 }
 
 loadVoices();
@@ -406,8 +388,6 @@ speechSynthesis.onvoiceschanged =
 
 
 function speak(t) {
-
-    speechSynthesis.cancel();
 
     const u =
         new SpeechSynthesisUtterance(t);
@@ -422,21 +402,19 @@ function speak(t) {
         );
 
     if (v) {
+
         u.voice = v;
+
     }
 
     speechSynthesis.speak(u);
 }
 
 
-// ===== 12. SEND BUTTON =====
+// ===== 11. SEND BUTTON =====
 
-const sendBtn =
-    document.getElementById('send');
-
-if (sendBtn) {
-
-    sendBtn.onclick = () => {
+document.getElementById('send').onclick =
+    () => {
 
         const t =
             input.value.trim();
@@ -452,29 +430,27 @@ if (sendBtn) {
 
         askGemini(t);
     };
-}
 
 
-// ===== 13. ENTER KEY =====
+// ===== 12. ENTER KEY =====
 
-if (input) {
+input.addEventListener(
+    'keydown',
+    (e) => {
 
-    input.addEventListener(
-        'keydown',
-        (e) => {
+        if (e.key === 'Enter') {
 
-            if (e.key === 'Enter') {
+            document
+                .getElementById('send')
+                .click();
 
-                if (sendBtn) {
-                    sendBtn.click();
-                }
-            }
         }
-    );
-}
+
+    }
+);
 
 
-// ===== 14. CLEAR MEMORY =====
+// ===== 13. CLEAR MEMORY =====
 
 if (clearBtn) {
 
@@ -490,11 +466,12 @@ if (clearBtn) {
             'SYSTEM: Memory cleared.',
             'ai'
         );
+
     };
 }
 
 
-// ===== 15. ADD MESSAGE =====
+// ===== 14. ADD MESSAGE =====
 
 function add(t, w) {
 

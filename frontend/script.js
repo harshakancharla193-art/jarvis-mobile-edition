@@ -1,17 +1,14 @@
 // =====================================================
-// J.A.R.V.I.S - MOBILE EDITION
-// FULL JAVASCRIPT
+// J.A.R.V.I.S - FULL SCRIPT
 // =====================================================
 
-
-// =====================================================
-// 1. API KEY
-// =====================================================
+// -------------------------------
+// API KEY
+// -------------------------------
 
 let API_KEY = localStorage.getItem("jarvis_key");
 
 if (!API_KEY) {
-
     API_KEY = prompt("Enter your Gemini API Key:");
 
     if (API_KEY) {
@@ -20,35 +17,22 @@ if (!API_KEY) {
 }
 
 
-// =====================================================
-// 2. GEMINI MODELS
-// =====================================================
-
-const MODELS = [
-    "gemini-3.6-flash",
-    "gemini-flash-latest"
-];
-
-
-// =====================================================
-// 3. GET HTML ELEMENTS
-// =====================================================
+// -------------------------------
+// ELEMENTS
+// -------------------------------
 
 const chat = document.getElementById("chat");
 const input = document.getElementById("msg");
-
 const sendBtn = document.getElementById("send");
 
-const micBtn = document.getElementById("mic-btn");
-const clearBtn = document.getElementById("clear-btn");
-
+const refreshBtn = document.getElementById("refresh-btn");
 const camBtn = document.getElementById("cam-btn");
 const imgInput = document.getElementById("img-input");
 
 
-// =====================================================
-// 4. MEMORY
-// =====================================================
+// -------------------------------
+// MEMORY
+// -------------------------------
 
 let MEMORY = JSON.parse(
     localStorage.getItem("jarvis_memory") || "[]"
@@ -56,230 +40,163 @@ let MEMORY = JSON.parse(
 
 
 function saveMemory() {
-
     localStorage.setItem(
         "jarvis_memory",
         JSON.stringify(MEMORY)
     );
-
 }
 
 
-// =====================================================
-// 5. LOAD PREVIOUS MEMORY
-// =====================================================
+// -------------------------------
+// ADD MESSAGE
+// -------------------------------
 
-MEMORY.forEach(function (message) {
+function add(text, type) {
 
-    add(
-        (message.role === "user"
-            ? "YOU: "
-            : "J.A.R.V.I.S: ") + message.text,
+    const message = document.createElement("div");
 
-        message.role === "user"
-            ? "user"
-            : "ai"
-    );
+    message.className = "msg " + type;
+
+    message.innerText = text;
+
+    chat.appendChild(message);
+
+    chat.scrollTop = chat.scrollHeight;
+
+    return message;
+}
+
+
+// -------------------------------
+// LOAD OLD CHAT
+// -------------------------------
+
+MEMORY.forEach(function (item) {
+
+    if (item.role === "user") {
+
+        add(
+            "YOU: " + item.text,
+            "user"
+        );
+
+    } else {
+
+        add(
+            "J.A.R.V.I.S: " + item.text,
+            "ai"
+        );
+
+    }
 
 });
 
 
-// =====================================================
-// 6. GEMINI AI FUNCTION
-// =====================================================
+// -------------------------------
+// GEMINI REQUEST
+// -------------------------------
 
-async function callGemini(prompt) {
+async function askGemini(question) {
 
-    if (!API_KEY) {
-
-        throw new Error(
-            "Gemini API key is missing."
-        );
-
-    }
-
-
-    // Get recent conversation
-    const contents = MEMORY
-        .slice(-12)
-        .map(function (message) {
-
-            return {
-
-                role:
-                    message.role === "model"
-                        ? "model"
-                        : "user",
-
-                parts: [
-                    {
-                        text: message.text
-                    }
-                ]
-
-            };
-
-        });
-
-
-    // Add current question
-    contents.push({
-
-        role: "user",
-
-        parts: [
-            {
-                text: prompt
-            }
-        ]
-
-    });
-
-
-    let lastError = null;
-
-
-    // Try models one by one
-    for (const model of MODELS) {
-
-        try {
-
-            const response = await fetch(
-
-                "https://generativelanguage.googleapis.com/v1beta/models/" +
-                model +
-                ":generateContent?key=" +
-                API_KEY,
-
-                {
-
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    body: JSON.stringify({
-
-                        contents: contents
-
-                    })
-
-                }
-
-            );
-
-
-            const data =
-                await response.json();
-
-
-            // API error
-            if (data.error) {
-
-                lastError =
-                    new Error(
-                        data.error.message
-                    );
-
-                continue;
-
-            }
-
-
-            // Check response
-            if (
-                !data.candidates ||
-                !data.candidates[0]
-            ) {
-
-                throw new Error(
-                    "No response received from Gemini."
-                );
-
-            }
-
-
-            return data
-                .candidates[0]
-                .content
-                .parts[0]
-                .text;
-
-
-        } catch (error) {
-
-            lastError = error;
-
-        }
-
-    }
-
-
-    throw lastError ||
-        new Error(
-            "Gemini request failed."
-        );
-
-}
-
-
-// =====================================================
-// 7. ASK JARVIS
-// =====================================================
-
-async function askGemini(prompt) {
-
-    // Show thinking
-    add(
+    const thinkingMessage = add(
         "J.A.R.V.I.S: Thinking...",
         "ai"
     );
 
+    if (!API_KEY) {
+
+        thinkingMessage.innerText =
+            "J.A.R.V.I.S: API key is missing.";
+
+        return;
+    }
 
     try {
 
-        const reply =
-            await callGemini(prompt);
+        const response = await fetch(
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=" +
+            API_KEY,
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+
+                    contents: [
+
+                        {
+                            role: "user",
+
+                            parts: [
+                                {
+                                    text:
+                                        "You are J.A.R.V.I.S, a helpful personal AI assistant. Answer clearly and naturally.\n\nUser: " +
+                                        question
+                                }
+                            ]
+                        }
+
+                    ]
+
+                })
+            }
+        );
 
 
-        // Save user message
+        const data = await response.json();
+
+
+        if (data.error) {
+
+            throw new Error(
+                data.error.message
+            );
+
+        }
+
+
+        const answer =
+            data.candidates[0]
+                .content.parts[0].text;
+
+
+        thinkingMessage.innerText =
+            "J.A.R.V.I.S: " + answer;
+
+
+        // Save memory
+
         MEMORY.push({
-
             role: "user",
-
-            text: prompt
-
+            text: question
         });
 
-
-        // Save AI message
         MEMORY.push({
-
             role: "model",
-
-            text: reply
-
+            text: answer
         });
 
 
-        // Save to browser memory
+        // Keep only last 20 messages
+
+        if (MEMORY.length > 20) {
+            MEMORY =
+                MEMORY.slice(-20);
+        }
+
+
         saveMemory();
 
 
-        // Display response
-        chat.lastChild.innerText =
-            "J.A.R.V.I.S: " + reply;
-
-
-        // Speak response
-        speak(reply);
+        speak(answer);
 
 
     } catch (error) {
 
-        chat.lastChild.innerText =
+        thinkingMessage.innerText =
             "J.A.R.V.I.S: ERROR - " +
             error.message;
 
@@ -288,9 +205,9 @@ async function askGemini(prompt) {
 }
 
 
-// =====================================================
-// 8. SEND MESSAGE
-// =====================================================
+// -------------------------------
+// SEND MESSAGE
+// -------------------------------
 
 function sendMessage() {
 
@@ -303,105 +220,117 @@ function sendMessage() {
     }
 
 
-    // Add user message
     add(
         "YOU: " + text,
         "user"
     );
 
 
-    // Clear input
     input.value = "";
 
 
-    // Ask Gemini
     askGemini(text);
 
 }
 
 
-// Send button
-sendBtn.onclick =
-    sendMessage;
+if (sendBtn) {
+
+    sendBtn.addEventListener(
+        "click",
+        sendMessage
+    );
+
+}
 
 
-// =====================================================
-// 9. ENTER KEY
-// =====================================================
+// -------------------------------
+// ENTER KEY
+// -------------------------------
 
-input.addEventListener(
-    "keydown",
-    function (event) {
+if (input) {
 
-        if (event.key === "Enter") {
+    input.addEventListener(
+        "keydown",
+        function (event) {
 
-            event.preventDefault();
+            if (event.key === "Enter") {
 
-            sendMessage();
+                event.preventDefault();
+
+                sendMessage();
+
+            }
 
         }
+    );
 
-    }
-);
+}
 
 
 // =====================================================
-// 10. CLEAR MEMORY
+// MEMORY REFRESH BUTTON
 // =====================================================
 
-if (clearBtn) {
+if (refreshBtn) {
 
-    clearBtn.onclick =
+    refreshBtn.addEventListener(
+        "click",
         function () {
 
             // Delete memory
+
             MEMORY = [];
 
-
-            // Delete browser storage
             localStorage.removeItem(
                 "jarvis_memory"
             );
 
 
             // Clear chat
+
             chat.innerHTML = "";
 
 
-            // Show confirmation
+            // New system message
+
             add(
-                "SYSTEM: Memory cleared.",
+                "J.A.R.V.I.S: Memory refreshed. New session started.",
                 "ai"
             );
 
-        };
+        }
+    );
 
 }
 
 
 // =====================================================
-// 11. CAMERA BUTTON
+// CAMERA BUTTON
 // =====================================================
 
 if (camBtn && imgInput) {
 
-    camBtn.onclick =
+    camBtn.addEventListener(
+        "click",
         function () {
 
             imgInput.click();
 
-        };
+        }
+    );
 
 }
 
 
 // =====================================================
-// 12. IMAGE SELECTED
+// IMAGE SELECTED
 // =====================================================
 
 if (imgInput) {
 
-    imgInput.onchange =
+    imgInput.addEventListener(
+        "change",
         function () {
 
             const file =
@@ -413,17 +342,22 @@ if (imgInput) {
             }
 
 
-            // Check image
             if (!file.type.startsWith("image/")) {
 
                 add(
-                    "SYSTEM: Please select an image.",
+                    "J.A.R.V.I.S: Please select an image.",
                     "ai"
                 );
 
                 return;
 
             }
+
+
+            add(
+                "YOU: [IMAGE]",
+                "user"
+            );
 
 
             const reader =
@@ -438,32 +372,9 @@ if (imgInput) {
                             .split(",")[1];
 
 
-                    // Question from input
-                    const question =
-                        input.value.trim() ||
-                        "What do you see in this image? Describe it briefly.";
-
-
-                    // Show user message
-                    add(
-                        "YOU: [IMAGE] " +
-                        question,
-                        "user"
-                    );
-
-
-                    input.value = "";
-
-
-                    // Analyze image
                     askVision(
-
                         base64,
-
-                        file.type,
-
-                        question
-
+                        file.type
                     );
 
                 };
@@ -471,176 +382,153 @@ if (imgInput) {
 
             reader.readAsDataURL(file);
 
-        };
+
+            // Allow same image to be selected again
+
+            imgInput.value = "";
+
+        }
+    );
 
 }
 
 
 // =====================================================
-// 13. GEMINI VISION
+// IMAGE ANALYSIS
 // =====================================================
 
 async function askVision(
     base64,
-    mimeType,
-    question
+    mimeType
 ) {
 
-    add(
-        "J.A.R.V.I.S: Analyzing image...",
-        "ai"
-    );
+    const message =
+        add(
+            "J.A.R.V.I.S: Analyzing image...",
+            "ai"
+        );
 
 
-    let lastError = null;
+    if (!API_KEY) {
 
+        message.innerText =
+            "J.A.R.V.I.S: API key is missing.";
 
-    for (const model of MODELS) {
-
-        try {
-
-            const response =
-                await fetch(
-
-                    "https://generativelanguage.googleapis.com/v1beta/models/" +
-                    model +
-                    ":generateContent?key=" +
-                    API_KEY,
-
-                    {
-
-                        method: "POST",
-
-                        headers: {
-
-                            "Content-Type":
-                                "application/json"
-
-                        },
-
-                        body: JSON.stringify({
-
-                            contents: [
-
-                                {
-
-                                    role: "user",
-
-                                    parts: [
-
-                                        {
-
-                                            text:
-                                                question
-
-                                        },
-
-                                        {
-
-                                            inline_data: {
-
-                                                mime_type:
-                                                    mimeType,
-
-                                                data:
-                                                    base64
-
-                                            }
-
-                                        }
-
-                                    ]
-
-                                }
-
-                            ]
-
-                        })
-
-                    }
-
-                );
-
-
-            const data =
-                await response.json();
-
-
-            if (data.error) {
-
-                lastError =
-                    new Error(
-                        data.error.message
-                    );
-
-                continue;
-
-            }
-
-
-            if (
-                !data.candidates ||
-                !data.candidates[0]
-            ) {
-
-                throw new Error(
-                    "Gemini did not return an image response."
-                );
-
-            }
-
-
-            const reply =
-                data
-                    .candidates[0]
-                    .content
-                    .parts[0]
-                    .text;
-
-
-            // Display answer
-            chat.lastChild.innerText =
-                "J.A.R.V.I.S: " +
-                reply;
-
-
-            // Speak answer
-            speak(reply);
-
-
-            return;
-
-
-        } catch (error) {
-
-            lastError = error;
-
-        }
+        return;
 
     }
 
 
-    chat.lastChild.innerText =
-        "J.A.R.V.I.S: ERROR - " +
-        (
-            lastError
-                ? lastError.message
-                : "Image analysis failed."
-        );
+    try {
+
+        const response =
+            await fetch(
+
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=" +
+                API_KEY,
+
+                {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+
+                        contents: [
+
+                            {
+
+                                role: "user",
+
+                                parts: [
+
+                                    {
+                                        text:
+                                            "Look at this image and describe what you see clearly."
+                                    },
+
+                                    {
+
+                                        inline_data: {
+
+                                            mime_type:
+                                                mimeType,
+
+                                            data:
+                                                base64
+
+                                        }
+
+                                    }
+
+                                ]
+
+                            }
+
+                        ]
+
+                    })
+
+                }
+
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (data.error) {
+
+            throw new Error(
+                data.error.message
+            );
+
+        }
+
+
+        const answer =
+            data.candidates[0]
+                .content.parts[0].text;
+
+
+        message.innerText =
+            "J.A.R.V.I.S: " +
+            answer;
+
+
+        speak(answer);
+
+
+    } catch (error) {
+
+        message.innerText =
+            "J.A.R.V.I.S: IMAGE ERROR - " +
+            error.message;
+
+    }
 
 }
 
 
 // =====================================================
-// 14. VOICE RECOGNITION
+// VOICE INPUT
 // =====================================================
+
+const micBtn =
+    document.getElementById("mic-btn");
+
 
 const SpeechRecognition =
     window.SpeechRecognition ||
     window.webkitSpeechRecognition;
 
 
-if (SpeechRecognition && micBtn) {
+if (micBtn && SpeechRecognition) {
 
     const recognition =
         new SpeechRecognition();
@@ -658,48 +546,34 @@ if (SpeechRecognition && micBtn) {
         false;
 
 
-    // When speech is recognized
+    micBtn.addEventListener(
+        "click",
+        function () {
+
+            recognition.start();
+
+            micBtn.innerText =
+                "LISTENING...";
+
+        }
+    );
+
+
     recognition.onresult =
         function (event) {
 
             const text =
-                event
-                    .results[0][0]
+                event.results[0][0]
                     .transcript;
 
 
-            add(
-                "YOU: " + text,
-                "user"
-            );
+            input.value = text;
 
-
-            askGemini(text);
+            sendMessage();
 
         };
 
 
-    // Start listening
-    micBtn.onclick =
-        function () {
-
-            try {
-
-                recognition.start();
-
-                micBtn.innerText =
-                    "LISTENING...";
-
-            } catch (error) {
-
-                console.log(error);
-
-            }
-
-        };
-
-
-    // Stop listening
     recognition.onend =
         function () {
 
@@ -708,46 +582,12 @@ if (SpeechRecognition && micBtn) {
 
         };
 
-
-} else if (micBtn) {
-
-    micBtn.onclick =
-        function () {
-
-            add(
-
-                "SYSTEM: Voice recognition is not supported in this browser.",
-
-                "ai"
-
-            );
-
-        };
-
 }
 
 
 // =====================================================
-// 15. TEXT TO SPEECH
+// VOICE OUTPUT
 // =====================================================
-
-let voices = [];
-
-
-function loadVoices() {
-
-    voices =
-        speechSynthesis.getVoices();
-
-}
-
-
-loadVoices();
-
-
-speechSynthesis.onvoiceschanged =
-    loadVoices;
-
 
 function speak(text) {
 
@@ -756,81 +596,29 @@ function speak(text) {
     }
 
 
-    // Stop previous speech
     speechSynthesis.cancel();
 
 
-    const utterance =
+    const voice =
         new SpeechSynthesisUtterance(
             text
         );
 
 
-    utterance.rate =
-        1.05;
+    voice.rate = 1.0;
 
-
-    utterance.pitch =
-        0.85;
-
-
-    // Find English voice
-    const voice =
-        voices.find(function (voice) {
-
-            return voice.lang
-                .toLowerCase()
-                .startsWith("en");
-
-        });
-
-
-    if (voice) {
-
-        utterance.voice =
-            voice;
-
-    }
+    voice.pitch = 0.85;
 
 
     speechSynthesis.speak(
-        utterance
+        voice
     );
 
 }
 
 
 // =====================================================
-// 16. ADD MESSAGE TO CHAT
-// =====================================================
-
-function add(text, who) {
-
-    const message =
-        document.createElement("div");
-
-
-    message.className =
-        "msg " + who;
-
-
-    message.innerText =
-        text;
-
-
-    chat.appendChild(
-        message
-    );
-
-
-    chat.scrollTop =
-        chat.scrollHeight;
-
-}
-
-
-// =====================================================
-// 17. STARTUP MESSAGE
+// STARTUP
 // =====================================================
 
 if (MEMORY.length === 0) {

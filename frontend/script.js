@@ -1,227 +1,62 @@
-// ===== 3.5. AGENT MODE ENGINE =====
+// ===== 1. API KEY =====
 
-const AGENT_TOOLS = Object.freeze({
+let API_KEY = localStorage.getItem("jarvis_key");
 
-    time: async () => handleTools("current time"),
+if (!API_KEY) {
+    API_KEY = prompt("Enter your Gemini API Key:");
 
-    weather: async () => handleTools("weather"),
+    if (API_KEY) {
+        localStorage.setItem("jarvis_key", API_KEY);
+    }
+}
 
-    news: async () => handleTools("news"),
+const MODELS = [
+    "gemini-3.6-flash",
+    "gemini-flash-latest"
+];
 
-    crypto: async () => handleTools("bitcoin")
+
+// ===== 2. MEMORY =====
+
+let MEMORY = JSON.parse(
+    localStorage.getItem("jarvis_memory") || "[]"
+);
+
+function saveMemory() {
+    localStorage.setItem(
+        "jarvis_memory",
+        JSON.stringify(MEMORY)
+    );
+}
+
+
+// ===== 3. HTML ELEMENTS =====
+
+const chat = document.getElementById("chat");
+const input = document.getElementById("msg");
+const sendBtn = document.getElementById("send");
+
+
+// ===== 4. LOAD MEMORY =====
+
+MEMORY.forEach(m => {
+
+    add(
+        (m.role === "user"
+            ? "YOU: "
+            : "J.A.R.V.I.S: ") + m.text,
+
+        m.role === "user"
+            ? "user"
+            : "ai"
+    );
 
 });
 
 
-const AGENT_TOOL_NAMES = Object.freeze({
-
-    time: "time",
-
-    weather: "weather",
-
-    news: "news",
-
-    crypto: "crypto"
-
-});
-
-
-// ===== CHECK AGENT MODE REQUEST =====
-
-function isAgentModeRequest(text = "") {
-
-    const value = String(text || "");
-
-    if (
-        /\b(?:agent(?:\s+mode)?|run\s+(?:the\s+)?agent|use\s+(?:the\s+)?agent)\b/i.test(value)
-    ) {
-        return true;
-    }
-
-    if (
-        /\b(?:briefing|research|analy[sz]e|analysis)\b/i.test(value)
-    ) {
-        return true;
-    }
-
-    return (
-        /\bplan\b/i.test(value) &&
-        /\b(?:time|weather|news|crypto|bitcoin|btc)\b/i.test(value)
-    );
-}
-
-
-// ===== PARSE AGENT TOOL PLAN =====
-
-function parseAgentToolPlan(responseText) {
-
-    const text = String(responseText || "")
-        .trim()
-        .replace(/^```(?:json)?\s*/i, "")
-        .replace(/\s*```$/, "");
-
-    const start = text.indexOf("[");
-    const end = text.lastIndexOf("]");
-
-    if (start < 0 || end < start) {
-        throw new Error("Agent plan format incorrect.");
-    }
-
-    const parsed = JSON.parse(
-        text.slice(start, end + 1)
-    );
-
-    const allowed = new Set(
-        Object.keys(AGENT_TOOLS)
-    );
-
-    return [
-        ...new Set(
-            parsed
-                .filter(item => typeof item === "string")
-                .map(item => item.trim().toLowerCase())
-                .filter(item => allowed.has(item))
-        )
-    ];
-}
-
-
-// ===== FALLBACK AGENT PLAN =====
-
-function fallbackAgentToolPlan(goal) {
-
-    const text = String(goal || "").toLowerCase();
-
-    const tools = [];
-
-    if (/\btime\b/i.test(text)) {
-        tools.push("time");
-    }
-
-    if (/\bweather\b/i.test(text)) {
-        tools.push("weather");
-    }
-
-    if (/\b(?:news|latest)\b/i.test(text)) {
-        tools.push("news");
-    }
-
-    if (/\b(?:crypto|bitcoin|btc)\b/i.test(text)) {
-        tools.push("crypto");
-    }
-
-    return tools;
-}
-
-
-// ===== RUN AGENT =====
-
-async function runAgent(goal) {
-
-    add(
-        "J.A.R.V.I.S: Agent mode active.",
-        "ai"
-    );
-
-    add(
-        "J.A.R.V.I.S: Goal analyze chesthunna...",
-        "ai"
-    );
-
-
-    const planPrompt =
-        'Select tools from ["time","weather","news","crypto"]. ' +
-        "Return ONLY a JSON array. Goal: " +
-        JSON.stringify(String(goal));
-
-
-    let toolsToRun;
-
-
-    try {
-
-        toolsToRun = parseAgentToolPlan(
-            await callGeminiRaw(planPrompt)
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Agent planning error:",
-            error
-        );
-
-        toolsToRun = fallbackAgentToolPlan(goal);
-
-    }
-
-
-    const results = {};
-
-
-    for (let i = 0; i < toolsToRun.length; i++) {
-
-        const tool = toolsToRun[i];
-
-        add(
-            "J.A.R.V.I.S: [" +
-            (i + 1) +
-            "/" +
-            toolsToRun.length +
-            "] " +
-            AGENT_TOOL_NAMES[tool] +
-            " tool run chesthunna...",
-            "ai"
-        );
-
-
-        try {
-
-            results[tool] =
-                await AGENT_TOOLS[tool]();
-
-        } catch (e) {
-
-            console.error(
-                tool + " tool error:",
-                e
-            );
-
-            results[tool] = "Tool error";
-
-        }
-
-    }
-
-
-    add(
-        "J.A.R.V.I.S: Results combine chesthunna...",
-        "ai"
-    );
-
-
-    const summaryPrompt =
-        "Goal: " +
-        JSON.stringify(String(goal)) +
-        ". Tool results: " +
-        JSON.stringify(results) +
-        ". Give a concise Telugu/English summary.";
-
-
-    return await callGemini(summaryPrompt);
-}
-
-
-// ===== 4. GEMINI BRAIN =====
+// ===== 5. GEMINI BRAIN =====
 
 async function callGemini(prompt) {
-
-    if (!API_KEY) {
-        throw new Error(
-            "Gemini API key is missing."
-        );
-    }
-
 
     const contents = MEMORY
         .slice(-12)
@@ -234,7 +69,6 @@ async function callGemini(prompt) {
             ]
         }));
 
-
     contents.push({
         role: "user",
         parts: [
@@ -244,20 +78,17 @@ async function callGemini(prompt) {
         ]
     });
 
+    let lastErr;
 
     for (const model of MODELS) {
 
         try {
 
-            const url =
+            const res = await fetch(
                 "https://generativelanguage.googleapis.com/v1beta/models/" +
                 model +
                 ":generateContent?key=" +
-                encodeURIComponent(API_KEY);
-
-
-            const response = await fetch(
-                url,
+                API_KEY,
                 {
                     method: "POST",
 
@@ -271,60 +102,169 @@ async function callGemini(prompt) {
                 }
             );
 
+            const data = await res.json();
 
-            if (!response.ok) {
+            if (data.error) {
 
-                const errorText =
-                    await response.text();
-
-                console.error(
-                    model +
-                    " API error:",
-                    errorText
+                lastErr = new Error(
+                    data.error.message
                 );
 
-                continue;
+                if (
+                    /high demand|temporar|quota|rate|unavailable|deprecated/i
+                    .test(data.error.message)
+                ) {
+                    continue;
+                }
+
+                throw lastErr;
             }
 
+            return data
+                .candidates[0]
+                .content
+                .parts[0]
+                .text;
 
-            const data =
-                await response.json();
+        } catch (e) {
 
-
-            const answer =
-                data?.candidates?.[0]?.content?.parts
-                    ?.map(part => part.text || "")
-                    .join("")
-                    .trim();
-
-
-            if (answer) {
-                return answer;
-            }
-
-        } catch (error) {
-
-            console.error(
-                model +
-                " request failed:",
-                error
-            );
+            lastErr = e;
 
         }
 
     }
 
+    throw lastErr;
+}
 
-    throw new Error(
-        "All Gemini models failed."
+
+// ===== 6. ASK JARVIS =====
+
+async function askGemini(prompt) {
+
+    add(
+        "J.A.R.V.I.S: Thinking...",
+        "ai"
+    );
+
+    try {
+
+        const reply = await callGemini(prompt);
+
+        MEMORY.push({
+            role: "user",
+            text: prompt
+        });
+
+        MEMORY.push({
+            role: "model",
+            text: reply
+        });
+
+        saveMemory();
+
+        chat.lastChild.innerText =
+            "J.A.R.V.I.S: " + reply;
+
+        speak(reply);
+
+    } catch (e) {
+
+        chat.lastChild.innerText =
+            "J.A.R.V.I.S: ERROR - " +
+            e.message;
+
+    }
+}
+
+
+// ===== 7. SEND BUTTON =====
+
+sendBtn.onclick = () => {
+
+    const text = input.value.trim();
+
+    if (!text) return;
+
+    add(
+        "YOU: " + text,
+        "user"
+    );
+
+    input.value = "";
+
+    askGemini(text);
+};
+
+
+// ===== 8. ENTER KEY =====
+
+input.addEventListener(
+    "keydown",
+    function (event) {
+
+        if (event.key === "Enter") {
+            sendBtn.click();
+        }
+
+    }
+);
+
+
+// ===== 9. TEXT TO SPEECH =====
+
+let voices = [];
+
+function loadVoices() {
+
+    voices =
+        speechSynthesis.getVoices();
+
+}
+
+loadVoices();
+
+speechSynthesis.onvoiceschanged =
+    loadVoices;
+
+
+function speak(text) {
+
+    const utterance =
+        new SpeechSynthesisUtterance(text);
+
+    utterance.rate = 1.05;
+    utterance.pitch = 0.85;
+
+    const voice =
+        voices.find(v =>
+            v.lang.startsWith("en")
+        );
+
+    if (voice) {
+        utterance.voice = voice;
+    }
+
+    speechSynthesis.speak(
+        utterance
     );
 }
 
 
-// ===== RAW GEMINI RESPONSE =====
+// ===== 10. ADD MESSAGE =====
 
-async function callGeminiRaw(prompt) {
+function add(text, who) {
 
-    return await callGemini(prompt);
+    const d =
+        document.createElement("div");
 
+    d.className =
+        "msg " + who;
+
+    d.innerText = text;
+
+    chat.appendChild(d);
+
+    chat.scrollTop =
+        chat.scrollHeight;
 }
